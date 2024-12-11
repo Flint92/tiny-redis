@@ -1,0 +1,9 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.42.0", features = ["full"] } # async networking
+bytes = "1.9.0" # helps manage buffer
+anyhow = "1.0.94" # error
