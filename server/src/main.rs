@@ -1,65 +1,41 @@
+// Include the server module
+mod server;
+
 mod resp;
 
-use crate::resp::{RespHandler, Value};
+use std::process::exit;
 use anyhow::Result;
-use bytes::BufMut;
-use tokio::io::AsyncReadExt;
-use tokio::net::{TcpListener, TcpStream};
+use log::{error, info};
+use tokio::net::{TcpListener};
 
-async fn handle_connection(stream: TcpStream) {
-    let mut handler = RespHandler::new(stream);
-
-    loop {
-        let value = handler.read_value().await.unwrap();
-
-        let response = if let Some(v) = value {
-            let (command, args) = extract_command(v).unwrap();
-            match command.as_str() {
-                "ping" => Value::SimpleString("PONG".into()),
-                "echo" => args.first().unwrap().clone(),
-                "byte" => break,
-                c => panic!("unknown command {}", c),
-            }
-        } else {
-            break;
-        };
-
-        handler.write_value(response).await.unwrap();
-    }
-}
-
-fn extract_command(value: Value) -> Result<(String, Vec<Value>)> {
-   match value {
-       Value::Array(values) => {
-           Ok((
-               values.first().unwrap().serialize(),
-               values.into_iter().skip(1).collect(),
-           ))
-       },
-       Value::SimpleString(s) => Ok((s, vec![])),
-       Value::Integer(i) => Ok((String::new(), vec![])), // todo
-       Value::Error(e) => Ok((e, vec![])),
-       Value::BulkString(s) => Ok((s, vec![])),
-       _ => Err(anyhow::anyhow!("Unexpected command format")),
-   }
-}
 
 #[tokio::main]
-async fn main() {
-    let listener = TcpListener::bind("127.0.0.1:16379").await.unwrap();
+async fn main() -> Result<()> {
+    // Initialize the logger.
+    // This sets up logging based on the RUST_LOG environment variable.
+    env_logger::init();
 
-    loop {
-        let stream = listener.accept().await;
+    // Define the address the server will listen on.
+    let addr = format!("127.0.0.1:{}", 16379);
 
-        match stream {
-            Ok((stream, _)) => {
-                tokio::spawn(async move {
-                    handle_connection(stream).await;
-                });
-            },
-            Err(e) => {
-                eprintln!("Error: {}", e);
-            }
+    let listener = match TcpListener::bind(&addr).await {
+        // If the binding is successful, the listener is returned.
+        Ok(listener) => {
+            info!("Listening on: {}", addr);
+            listener
+        },
+        Err(e) => {
+            error!("Could not bind the TCP listener to {}. Err: {}", &addr, e);
+            exit(0)
         }
-    }
+    };
+
+    // Create a new server instance with the listener.
+    let mut server = server::Server::new(listener);
+
+    // Run the server to start accepting and handling incoming connections.
+    // This will run infinitely until the server is stopped.
+    server.run().await?;
+
+    Ok(())
 }
