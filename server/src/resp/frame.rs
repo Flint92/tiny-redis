@@ -75,11 +75,6 @@ impl Decoder for RespCommandFrame {
                 },
             };
 
-            let bulkstr_bytes = bulkstr_len + bytes_consumed + 2;
-            if src.len() < bulkstr_bytes {
-                src.advance(src.len());
-                return Ok(None);
-            }
 
             let n = src.len().min(SIZE_OF_RESP_LEN + bulkstr_len + 2);
             let (bulkstr, bytes_consumed) = match RespType::parse_bulk_string(
