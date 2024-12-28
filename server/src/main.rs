@@ -1,13 +1,13 @@
 // Include the server module
 mod server;
 
+mod handler;
 mod resp;
 
-use std::process::exit;
 use anyhow::Result;
 use log::{error, info};
-use tokio::net::{TcpListener};
-
+use std::process::exit;
+use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
         Ok(listener) => {
             info!("Listening on: {}", addr);
             listener
-        },
+        }
         Err(e) => {
             error!("Could not bind the TCP listener to {}. Err: {}", &addr, e);
             exit(0)

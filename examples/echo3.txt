@@ -1,0 +1,1 @@
+{ echo -e '*2\r\n$4\r\nPING\r\n$5\r\nhello\r\n'; sleep 1; } | nc localhost 16379

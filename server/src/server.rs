@@ -1,9 +1,12 @@
-use log::error;
-use std::io::Error;
-use bytes::BytesMut;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, Result};
-use tokio::net::{TcpListener, TcpStream};
 use crate::resp::types::RespType;
+use anyhow::{Error, Result};
+use bytes::BytesMut;
+use log::error;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
+use tokio_util::codec::Framed;
+use crate::handler::FrameHandler;
+use crate::resp::frame::RespCommandFrame;
 
 /// The server struct holds the tokio TcpListener which listens for
 /// incoming TCP connections.
@@ -25,7 +28,7 @@ impl Server {
             // accept a new TCP connection
             // If successful the corresponding TcpStream is restored
             // in the `sock` variable, else a panic will occur.
-            let mut sock = match self.accept_conn().await {
+            let sock = match self.accept_conn().await {
                 Ok(sock) => sock,
                 Err(e) => {
                     error!("Failed to accept incoming connection: {}", e);
@@ -36,20 +39,15 @@ impl Server {
             // Spawn a new asynchronous task to handle the incoming connection.
             // This allows the server to handle multiple connections concurrently.
             tokio::spawn(async move {
-                // Create a buffer to store the incoming data.
-                let mut buf = BytesMut::with_capacity(512);
-                if let Err(e) = sock.read_buf(&mut buf).await {
-                    panic!("Failed to read from socket; err = {:?}", e);
-                }
+                // Use RespCommandFrame codec to read incoming TCP messages as Redis command frames,
+                // and to write RespType values into outgoing TCP messages.
+                let resp_command_frame= Framed::with_capacity(sock, RespCommandFrame::new(), 8 * 1024);
 
-                // Try parsing the RESP data from the bytes in the buffer.
-                let resp_data = match RespType::parse(buf) {
-                    Ok((data, _)) => data,
-                    Err(e) => RespType::SimpleError(format!("{}", e))
-                };
+                // Create a new FrameHandler instance.
+                let mut handler = FrameHandler::new(resp_command_frame);
 
                 // Echo the RESP message back to the client.
-                if let Err(e) = &mut sock.write_all(&resp_data.to_bytes()[..]).await {
+                if let Err(e) = handler.handle().await {
                     // Log the error and panic if there is an issue writing the response.
                     error!("{}", e);
                     panic!("Error writing response")
