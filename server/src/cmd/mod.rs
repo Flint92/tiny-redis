@@ -2,12 +2,18 @@ use crate::cmd::ping::Ping;
 use crate::resp::types::RespType;
 use core::fmt;
 use crate::cmd::get::Get;
+use crate::cmd::lpush::LPush;
+use crate::cmd::lrange::LRange;
+use crate::cmd::rpush::RPush;
 use crate::cmd::set::Set;
 use crate::storage::db::DB;
 
 pub mod ping;
 mod set;
 mod get;
+mod lpush;
+mod rpush;
+mod lrange;
 
 /// Represents a command.
 #[derive(Debug)]
@@ -18,6 +24,12 @@ pub enum Command {
     Set(Set),
     /// The GET command.
     Get(Get),
+    /// The LPUSH command.
+    LPush(LPush),
+    /// The RPUSH command.
+    RPush(RPush),
+    /// The LRANGE command.
+    LRange(LRange),
 }
 
 impl Command {
@@ -37,6 +49,9 @@ impl Command {
             "ping" => Command::Ping(Ping::with_args(args.to_vec())?),
             "set" => Command::Set(Set::with_args(args.to_vec())?),
             "get" => Command::Get(Get::with_args(args.to_vec())?),
+            "lpush" => Command::LPush(LPush::with_args(args.to_vec())?),
+            "rpush" => Command::RPush(RPush::with_args(args.to_vec())?),
+            "lrange" => Command::LRange(LRange::with_args(args.to_vec())?),
             _ => {
                 return Err(CommandError::UnknownCommand(ErrUnknownCommand {
                     cmd: cmd_name.to_string(),
@@ -53,6 +68,9 @@ impl Command {
             Command::Ping(ping) => ping.apply(),
             Command::Set(set) => set.apply(db),
             Command::Get(get) => get.apply(db),
+            Command::LPush(lpush) => lpush.apply(db),
+            Command::RPush(rpush) => rpush.apply(db),
+            Command::LRange(lrange) => lrange.apply(db),
         }
     }
 }
@@ -79,4 +97,20 @@ impl fmt::Display for CommandError {
             CommandError::Other(msg) => msg.as_str().fmt(f),
         }
     }
+}
+
+fn parse_values(mut args: Vec<RespType>) -> Result<Vec<String>, CommandError> {
+    let mut  values = Vec::new();
+
+    for arg in args.iter().skip(1) {
+        match arg {
+            RespType::BulkString(s) => values.push(s.to_string()),
+            _ => {
+                return Err(CommandError::Other(String::from(
+                    "Invalid argument. Value must be a bulk string",
+                )));
+            }
+        }
+    }
+    Ok(values)
 }

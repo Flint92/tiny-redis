@@ -17,6 +17,8 @@ pub enum RespType {
     SimpleError(String),
     /// Refer <https://redis.io/docs/latest/develop/reference/protocol-spec/#arrays>
     Array(Vec<RespType>),
+    /// Refer <https://redis.io/docs/latest/develop/reference/protocol-spec/#integers>
+    Integer(i64),
 }
 
 impl RespType {
@@ -38,6 +40,7 @@ impl RespType {
             RespType::BulkString(s) => Bytes::from(format!("${}\r\n{}\r\n", s.chars().count(), s)),
             RespType::NullBulkString => Bytes::from("$-1\r\n"),
             RespType::SimpleError(s) => Bytes::from(format!("-{}\r\n", s)),
+            RespType::Integer(i) => Bytes::from_iter(format!(":{}\r\n", i).into_bytes()),
             RespType::Array(arr) => {
                 let mut arr_bytes = format!("*{}\r\n", arr.len()).into_bytes();
                 arr.iter()

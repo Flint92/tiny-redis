@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 use crate::storage::DBError;
 
@@ -28,6 +28,7 @@ pub struct Entry {
 #[derive(Debug, Clone)]
 pub enum Value {
     String(String),
+    List(VecDeque<String>),
 }
 
 impl Storage {
@@ -82,4 +83,76 @@ impl DB {
         Ok(())
     }
 
+
+    /// Left push elements associated with a key.
+    pub fn lpush(&self, key: String, value: Vec<String>) -> Result<usize, DBError> {
+        let mut data = match self.data.write() {
+            Ok(data) => data,
+            Err(e) => return Err(DBError::Other(format!("{}", e))),
+        };
+
+        let entry = data.entry(key).or_insert(Entry { value: Value::List(VecDeque::new()) });
+
+        if let Value::List(list) = &mut entry.value {
+            for item in value.iter() {
+                list.push_front(item.to_string());
+            }
+            return Ok(list.len())
+        }
+
+        Err(DBError::WrongType)
+    }
+
+    /// Right push elements associated with a key.
+    pub fn rpush(&self, key: String, value: Vec<String>) -> Result<usize, DBError> {
+        let mut data = match self.data.write() {
+            Ok(data) => data,
+            Err(e) => return Err(DBError::Other(format!("{}", e))),
+        };
+
+        let entry = data.entry(key).or_insert(Entry { value: Value::List(VecDeque::new()) });
+
+        if let Value::List(list) = &mut entry.value {
+            for item in value.iter() {
+                list.push_back(item.to_string());
+            }
+            return Ok(list.len())
+        }
+
+        Err(DBError::WrongType)
+    }
+
+    /// Get the specified number of elements of the list stored at key.
+    pub fn lrange(&self, key: String, start: i64, stop: i64) -> Result<Vec<String>, DBError> {
+        let data = match self.data.read() {
+            Ok(data) => data,
+            Err(e) => return Err(DBError::Other(format!("{}", e))),
+        };
+
+        let entry = match data.get(&key) {
+            Some(entry) => entry,
+            None => return Ok(Vec::new()),
+        };
+
+        if let Value::List(list) = &entry.value {
+            let len = list.len() as i64;
+            let start = if start < 0 { len + start } else { start };
+            let stop = if stop < 0 { len + stop } else { stop };
+
+            if start < 0 || stop < 0 || start >= len || stop >= len || start > stop {
+                return Ok(Vec::new())
+            }
+
+            let mut result = Vec::new();
+            for i in start..=stop {
+                if let Some(item) = list.get(i as usize) {
+                    result.push(item.to_string());
+                }
+            }
+
+            return Ok(result)
+        }
+
+        Err(DBError::WrongType)
+    }
 }
