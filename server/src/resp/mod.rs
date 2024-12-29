@@ -1,3 +1,4 @@
+use core::fmt;
 use std::fmt::Formatter;
 
 pub mod frame;
@@ -12,7 +13,7 @@ pub enum RespError {
     Other(String),
 }
 
-impl std::fmt::Display for RespError {
+impl fmt::Display for RespError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             RespError::InvalidBulkString(s) => s.as_str().fmt(f),

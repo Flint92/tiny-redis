@@ -1,13 +1,32 @@
+extern crate core;
+
 // Include the server module
 mod server;
 
 mod handler;
 mod resp;
+mod cmd;
 
 use anyhow::Result;
 use log::{error, info};
 use std::process::exit;
 use tokio::net::TcpListener;
+use clap::Parser;
+
+const DEFAULT_PORT: u16 = 16379;
+
+#[derive(Debug, Parser)]
+#[command(
+    name = "tiny-redis-server",
+    version,
+    author,
+    about = "A RESP based in-memory cache"
+)]
+struct Cli {
+    /// Port to be bound to tiny redis server
+    #[arg(long)]
+    port: Option<u16>,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -15,8 +34,12 @@ async fn main() -> Result<()> {
     // This sets up logging based on the RUST_LOG environment variable.
     env_logger::init();
 
+    // Get port from --port CLI parameter. Defaults to 16379
+    let cli = Cli::parse();
+    let port = cli.port.unwrap_or(DEFAULT_PORT);
+
     // Define the address the server will listen on.
-    let addr = format!("127.0.0.1:{}", 16379);
+    let addr = format!("127.0.0.1:{}", port);
 
     let listener = match TcpListener::bind(&addr).await {
         // If the binding is successful, the listener is returned.

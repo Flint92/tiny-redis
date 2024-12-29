@@ -1,6 +1,7 @@
+use core::fmt;
 use crate::resp::types::RespType;
 use bytes::{Buf, BytesMut};
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Formatter};
 use std::io::Error;
 use tokio_util::codec::{Decoder, Encoder};
 
@@ -63,7 +64,7 @@ impl Decoder for RespCommandFrame {
         // Read all bytes in the buffer
         while src.len() != 0 {
             let n = src.len().min(SIZE_OF_RESP_LEN);
-            let (bulkstr_len, bytes_consumed) = match RespType::parse_bulk_string_len(
+            let (bulkstr_len, _) = match RespType::parse_bulk_string_len(
                 BytesMut::from(&src[..n]),
             ) {
                 Ok((len, consumed)) => (len, consumed),
@@ -151,7 +152,7 @@ impl FrameError {
     }
 }
 
-impl Display for FrameError {
+impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(&self.err, f)
     }

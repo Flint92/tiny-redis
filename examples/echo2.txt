@@ -1,1 +1,0 @@
-{ echo -e '+OK\r\n'; sleep 1; } | nc localhost 16379
