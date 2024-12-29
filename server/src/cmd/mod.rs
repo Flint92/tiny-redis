@@ -1,19 +1,20 @@
-use crate::cmd::ping::Ping;
-use crate::resp::types::RespType;
-use core::fmt;
 use crate::cmd::get::Get;
 use crate::cmd::lpush::LPush;
 use crate::cmd::lrange::LRange;
+use crate::cmd::ping::Ping;
 use crate::cmd::rpush::RPush;
 use crate::cmd::set::Set;
+use crate::resp::types::RespType;
 use crate::storage::db::DB;
+use core::fmt;
 
-pub mod ping;
-mod set;
 mod get;
 mod lpush;
-mod rpush;
 mod lrange;
+pub mod ping;
+mod rpush;
+mod set;
+pub mod tx;
 
 /// Represents a command.
 #[derive(Debug)]
@@ -30,6 +31,12 @@ pub enum Command {
     RPush(RPush),
     /// The LRANGE command.
     LRange(LRange),
+    /// The Multi command.
+    Multi,
+    /// The Exec command.
+    Exec,
+    /// The Discard command.
+    Discard,
 }
 
 impl Command {
@@ -52,6 +59,9 @@ impl Command {
             "lpush" => Command::LPush(LPush::with_args(args.to_vec())?),
             "rpush" => Command::RPush(RPush::with_args(args.to_vec())?),
             "lrange" => Command::LRange(LRange::with_args(args.to_vec())?),
+            "multi" => Command::Multi,
+            "exec" => Command::Exec,
+            "discard" => Command::Discard,
             _ => {
                 return Err(CommandError::UnknownCommand(ErrUnknownCommand {
                     cmd: cmd_name.to_string(),
@@ -71,6 +81,9 @@ impl Command {
             Command::LPush(lpush) => lpush.apply(db),
             Command::RPush(rpush) => rpush.apply(db),
             Command::LRange(lrange) => lrange.apply(db),
+            Command::Multi => RespType::SimpleString(String::from("OK")),
+            Command::Exec => RespType::NullBulkString,
+            Command::Discard => RespType::SimpleString(String::from("OK")),
         }
     }
 }
@@ -99,8 +112,8 @@ impl fmt::Display for CommandError {
     }
 }
 
-fn parse_values(mut args: Vec<RespType>) -> Result<Vec<String>, CommandError> {
-    let mut  values = Vec::new();
+fn parse_values(args: Vec<RespType>) -> Result<Vec<String>, CommandError> {
+    let mut values = Vec::new();
 
     for arg in args.iter().skip(1) {
         match arg {

@@ -21,6 +21,7 @@ pub enum RespType {
     Integer(i64),
 }
 
+#[allow(dead_code)]
 impl RespType {
     /// Parse the buffer and return the RESP type and the number of bytes consumed
     pub fn parse(buf: BytesMut) -> Result<(RespType, usize), RespError> {
