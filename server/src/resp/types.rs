@@ -11,6 +11,8 @@ pub enum RespType {
     SimpleString(String),
     /// Refer <https://redis.io/docs/latest/develop/reference/protocol-spec/#bulk-strings>
     BulkString(String),
+    /// Null representation in RESP2. It's simply a BulkString with length of negative one (-1).
+    NullBulkString,
     /// Refer <https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-errors>
     SimpleError(String),
     /// Refer <https://redis.io/docs/latest/develop/reference/protocol-spec/#arrays>
@@ -34,6 +36,7 @@ impl RespType {
         match self {
             RespType::SimpleString(s) => Bytes::from(format!("+{}\r\n", s)),
             RespType::BulkString(s) => Bytes::from(format!("${}\r\n{}\r\n", s.chars().count(), s)),
+            RespType::NullBulkString => Bytes::from("$-1\r\n"),
             RespType::SimpleError(s) => Bytes::from(format!("-{}\r\n", s)),
             RespType::Array(arr) => {
                 let mut arr_bytes = format!("*{}\r\n", arr.len()).into_bytes();

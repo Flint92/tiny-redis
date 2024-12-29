@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::resp::types::RespType;
 use anyhow::{Error, Result};
 use bytes::BytesMut;
@@ -7,23 +8,29 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::Framed;
 use crate::handler::FrameHandler;
 use crate::resp::frame::RespCommandFrame;
+use crate::storage::db::Storage;
 
 /// The server struct holds the tokio TcpListener which listens for
 /// incoming TCP connections.
 #[derive(Debug)]
 pub struct Server {
+    /// The TCP listener for accepting incoming connections.
     listener: TcpListener,
+    /// Contains the shared storage.
+    storage: Storage,
 }
 
 impl Server {
     /// Create a new server instance with the given TcpListener.
-    pub fn new(listener: TcpListener) -> Self {
-        Self { listener }
+    pub fn new(listener: TcpListener, storage: Storage) -> Self {
+        Self { listener, storage }
     }
 
     /// Runs the server in an infinite loop, continuously accepting and handling
     /// incoming connections.
     pub async fn run(&mut self) -> Result<()> {
+        let db = self.storage.db();
+
         loop {
             // accept a new TCP connection
             // If successful the corresponding TcpStream is restored
@@ -36,6 +43,8 @@ impl Server {
                 }
             };
 
+            let db = Arc::clone(&db);
+
             // Spawn a new asynchronous task to handle the incoming connection.
             // This allows the server to handle multiple connections concurrently.
             tokio::spawn(async move {
@@ -47,7 +56,7 @@ impl Server {
                 let mut handler = FrameHandler::new(resp_command_frame);
 
                 // Echo the RESP message back to the client.
-                if let Err(e) = handler.handle().await {
+                if let Err(e) = handler.handle(db.as_ref()).await {
                     // Log the error and panic if there is an issue writing the response.
                     error!("{}", e);
                     panic!("Error writing response")

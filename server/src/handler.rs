@@ -7,6 +7,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio_util::codec::{Framed, FramedWrite};
 use crate::cmd::Command;
+use crate::storage::db::DB;
 
 /// FrameHandler is a struct that holds the connection to the client and handles RESP command
 pub struct FrameHandler {
@@ -21,7 +22,7 @@ impl FrameHandler {
     }
 
     /// Handle the incoming connection by reading the frames and processing the commands.
-    pub async fn handle(&mut self) -> Result<()> {
+    pub async fn handle(&mut self, db: &DB) -> Result<()> {
         while let Some(resp_cmd) = self.conn.next().await {
             match resp_cmd {
                 Ok(cmd_frame) => {
@@ -29,7 +30,7 @@ impl FrameHandler {
                     let resp_cmd = Command::from_resp_command_frame(cmd_frame);
 
                     let response = match resp_cmd {
-                        Ok(cmd) => cmd.execute(),
+                        Ok(cmd) => cmd.execute(db),
                         Err(e) => RespType::SimpleError(format!("{}", e)),
                     };
 

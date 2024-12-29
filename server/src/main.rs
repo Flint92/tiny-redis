@@ -6,6 +6,7 @@ mod server;
 mod handler;
 mod resp;
 mod cmd;
+mod storage;
 
 use anyhow::Result;
 use log::{error, info};
@@ -53,8 +54,11 @@ async fn main() -> Result<()> {
         }
     };
 
+    // initialize the storage
+    let storage = storage::db::Storage::new();
+
     // Create a new server instance with the listener.
-    let mut server = server::Server::new(listener);
+    let mut server = server::Server::new(listener, storage);
 
     // Run the server to start accepting and handling incoming connections.
     // This will run infinitely until the server is stopped.

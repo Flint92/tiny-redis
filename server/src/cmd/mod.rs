@@ -1,14 +1,23 @@
 use crate::cmd::ping::Ping;
 use crate::resp::types::RespType;
 use core::fmt;
+use crate::cmd::get::Get;
+use crate::cmd::set::Set;
+use crate::storage::db::DB;
 
 pub mod ping;
+mod set;
+mod get;
 
 /// Represents a command.
 #[derive(Debug)]
 pub enum Command {
     /// The PING command.
     Ping(Ping),
+    /// The SET command.
+    Set(Set),
+    /// The GET command.
+    Get(Get),
 }
 
 impl Command {
@@ -26,6 +35,8 @@ impl Command {
 
         let cmd = match cmd_name.to_lowercase().as_str() {
             "ping" => Command::Ping(Ping::with_args(args.to_vec())?),
+            "set" => Command::Set(Set::with_args(args.to_vec())?),
+            "get" => Command::Get(Get::with_args(args.to_vec())?),
             _ => {
                 return Err(CommandError::UnknownCommand(ErrUnknownCommand {
                     cmd: cmd_name.to_string(),
@@ -37,9 +48,11 @@ impl Command {
     }
 
     /// Executes the command.
-    pub fn execute(&self) -> RespType {
+    pub fn execute(&self, db: &DB) -> RespType {
         match self {
             Command::Ping(ping) => ping.apply(),
+            Command::Set(set) => set.apply(db),
+            Command::Get(get) => get.apply(db),
         }
     }
 }
