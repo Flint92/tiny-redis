@@ -1,4 +1,5 @@
-use crate::cmd::{parse_values, CommandError};
+use crate::cmd::CommandError;
+use crate::cmd::utils::parse_values;
 use crate::resp::types::RespType;
 use crate::storage::db::DB;
 
